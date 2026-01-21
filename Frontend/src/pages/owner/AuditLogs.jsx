@@ -1,26 +1,41 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import api from '../../api/axios';
+import { useAuth } from '../../api/AuthContext';
 import { Button } from '../../components/common/Button';
-import { Download, Shield, Search, Filter, ChevronDown, CalendarDays, Clock, Globe } from 'lucide-react';
+import { Download, Shield, Search, Filter, ChevronDown, CalendarDays, Clock, Globe, Loader2 } from 'lucide-react';
 
 const AuditLogs = () => {
+  const { user: authUser, loading: authLoading } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterAction, setFilterAction] = useState('All Actions');
+  const [logs, setLogs] = useState([]);
+  const [loadingLogs, setLoadingLogs] = useState(true);
+  const [errorLogs, setErrorLogs] = useState('');
 
-  // Requirement: Immutable Audit Trail Mock Data
-  const allLogs = [
-    { id: 1, timestamp: '2024-01-15 14:32:15', actionType: 'Data Accessed', entity: 'MedResearch Lab', dataType: 'Health Records', description: 'Data accessed for research study #RS-2024-001', user: 'System', ipAddress: '192.168.1.100' },
-    { id: 2, timestamp: '2024-01-15 10:15:42', actionType: 'Access Granted', entity: 'TrustedOrg Inc.', dataType: 'Demographics', description: 'Access consent granted for 12 months', user: 'John Smith (You)', ipAddress: '10.0.0.50' },
-    { id: 3, timestamp: '2024-01-14 16:45:00', actionType: 'Access Revoked', entity: 'OldPartner Corp', dataType: 'Financial Data', description: 'Access consent revoked by data owner', user: 'John Smith (You)', ipAddress: '10.0.0.50' },
-    { id: 4, timestamp: '2024-01-14 09:00:00', actionType: 'Data Accessed', entity: 'Government Agency', dataType: 'Public Records', description: 'Annual compliance check', user: 'System', ipAddress: '203.0.113.45' },
-    { id: 5, timestamp: '2024-01-13 18:00:00', actionType: 'Consent Created', entity: 'NewPartner LLC', dataType: 'Contact Info', description: 'New consent granted for marketing', user: 'John Smith (You)', ipAddress: '10.0.0.50' },
-    { id: 6, timestamp: '2024-01-13 11:30:00', actionType: 'Data Accessed', entity: 'Internal Audit Team', dataType: 'All Data', description: 'Internal security review', user: 'System', ipAddress: '172.16.0.1' },
-    { id: 7, timestamp: '2024-01-12 14:00:00', actionType: 'Access Denied', entity: 'Suspicious IP', dataType: 'N/A', description: 'Attempted unauthorized access', user: 'System', ipAddress: '198.51.100.20' },
-  ];
+  const fetchAuditLogs = async () => {
+    try {
+      setLoadingLogs(true);
+      const response = await api.get('/owner/audit-logs'); // Endpoint for audit logs
+      setLogs(response.data);
+    } catch (err) {
+      console.error('Error fetching audit logs:', err);
+      setErrorLogs('Failed to fetch audit logs.');
+    } finally {
+      setLoadingLogs(false);
+    }
+  };
 
-  const filteredLogs = allLogs.filter(log =>
-    (log.entity.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    log.description.toLowerCase().includes(searchTerm.toLowerCase())) &&
-    (filterAction === 'All Actions' || log.actionType === filterAction)
+  useEffect(() => {
+    if (!authLoading && authUser) {
+      fetchAuditLogs();
+    }
+  }, [authLoading, authUser]);
+
+
+  const filteredLogs = logs.filter(log =>
+    ((log.entity && log.entity.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (log.description && log.description.toLowerCase().includes(searchTerm.toLowerCase()))) &&
+    (filterAction === 'All Actions' || (log.actionType && log.actionType.toLowerCase() === filterAction.toLowerCase()))
   );
 
   const getActionBadge = (actionType) => {
@@ -103,35 +118,56 @@ const AuditLogs = () => {
         <div className="overflow-x-auto">
           <table className="w-full">
             <tbody className="divide-y divide-slate-50">
-              {filteredLogs.map((log) => (
-                <tr key={log.id} className="hover:bg-slate-50/80 transition-colors group">
-                  <td className="px-8 py-6 flex items-start gap-4">
-                    <div className="p-2 bg-slate-100 rounded-lg text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-500 transition-colors">
-                        <Clock size={18} />
-                    </div>
-                    <div>
-                        <p className="text-sm font-bold text-slate-900">{log.timestamp}</p>
-                        <div className="flex items-center gap-2 mt-1 text-[11px] text-slate-400 font-medium uppercase tracking-tighter">
-                            <Globe size={12} /> IP: {log.ipAddress}
-                        </div>
-                    </div>
-                  </td>
-                  <td className="px-8 py-6">
-                    {getActionBadge(log.actionType)}
-                  </td>
-                  <td className="px-8 py-6">
-                    <p className="text-sm font-bold text-slate-900">{log.entity}</p>
-                    <p className="text-xs text-slate-500 font-medium mt-0.5">{log.dataType}</p>
-                  </td>
-                  <td className="px-8 py-6">
-                    <p className="text-xs text-slate-600 leading-relaxed max-w-xs">{log.description}</p>
-                  </td>
-                  <td className="px-8 py-6 text-right">
-                    <p className="text-sm font-bold text-slate-900">{log.user}</p>
-                    <p className="text-[10px] text-indigo-500 font-bold uppercase tracking-widest mt-0.5 italic">Verified</p>
+              {loadingLogs ? (
+                <tr>
+                  <td colSpan="5" className="text-center py-20">
+                    <Loader2 className="mx-auto h-10 w-10 text-indigo-500 animate-spin" />
+                    <p className="text-slate-400 font-bold uppercase text-xs mt-2">Loading audit logs...</p>
                   </td>
                 </tr>
-              ))}
+              ) : errorLogs ? (
+                <tr>
+                  <td colSpan="5" className="text-center py-20 text-red-500">
+                    <p className="font-bold uppercase text-xs mt-2">{errorLogs}</p>
+                  </td>
+                </tr>
+              ) : filteredLogs.length === 0 ? (
+                <tr>
+                  <td colSpan="5" className="text-center py-20 text-slate-400">
+                    <p className="font-bold uppercase text-xs mt-2">No audit logs found.</p>
+                  </td>
+                </tr>
+              ) : (
+                filteredLogs.map((log) => (
+                  <tr key={log.id} className="hover:bg-slate-50/80 transition-colors group">
+                    <td className="px-8 py-6 flex items-start gap-4">
+                      <div className="p-2 bg-slate-100 rounded-lg text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-500 transition-colors">
+                          <Clock size={18} />
+                      </div>
+                      <div>
+                          <p className="text-sm font-bold text-slate-900">{new Date(log.timestamp).toLocaleString()}</p>
+                          <div className="flex items-center gap-2 mt-1 text-[11px] text-slate-400 font-medium uppercase tracking-tighter">
+                              <Globe size={12} /> IP: {log.ipAddress}
+                          </div>
+                      </div>
+                    </td>
+                    <td className="px-8 py-6">
+                      {getActionBadge(log.actionType)}
+                    </td>
+                    <td className="px-8 py-6">
+                      <p className="text-sm font-bold text-slate-900">{log.entity}</p>
+                      <p className="text-xs text-slate-500 font-medium mt-0.5">{log.dataType}</p>
+                    </td>
+                    <td className="px-8 py-6">
+                      <p className="text-xs text-slate-600 leading-relaxed max-w-xs">{log.description}</p>
+                    </td>
+                    <td className="px-8 py-6 text-right">
+                      <p className="text-sm font-bold text-slate-900">{log.user}</p>
+                      <p className="text-[10px] text-indigo-500 font-bold uppercase tracking-widest mt-0.5 italic">Verified</p>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

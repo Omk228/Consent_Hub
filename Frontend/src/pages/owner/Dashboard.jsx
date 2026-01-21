@@ -1,39 +1,65 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import api from '../../api/axios'; 
+import { useAuth } from '../../api/AuthContext'; 
 import { Button } from '../../components/common/Button';
-import { FileText, CheckCircle, XCircle, Hourglass, ShieldCheck, Clock } from 'lucide-react';
+import { FileText, CheckCircle, XCircle, Hourglass, ShieldCheck, Clock, Loader2 } from 'lucide-react';
 
 const OwnerDashboard = () => {
-  // 1. Requirement: Data Owner state management for requests
-  const [requests, setRequests] = useState([
-    { id: 'REQ-001', requester: 'Acme Healthcare', purpose: 'Medical Research', dataType: 'Health Records', date: 'Jan 15, 2026', status: 'pending' },
-    { id: 'REQ-002', requester: 'DataCorp Analytics', purpose: 'Market Analysis', dataType: 'Demographics', date: 'Jan 14, 2026', status: 'pending' },
-    { id: 'REQ-003', requester: 'FinTech Solutions', purpose: 'Credit Scoring', dataType: 'Financial Data', date: 'Jan 12, 2026', status: 'pending' },
-  ]);
+  const { user: authUser, loading: authLoading } = useAuth();
+  const [requests, setRequests] = useState([]);
+  const [activityLogs, setActivityLogs] = useState([]);
+  const [loadingRequests, setLoadingRequests] = useState(true);
+  const [loadingActivities, setLoadingActivities] = useState(true);
+  const [errorRequests, setErrorRequests] = useState('');
+  const [errorActivities, setErrorActivities] = useState('');
 
-  // 2. Requirement: Immutable Audit Logs state
-  const [activityLogs, setActivityLogs] = useState([
-    { id: 1, type: 'granted', description: 'MedResearch Lab', time: '2 hours ago' },
-    { id: 2, type: 'revoked', description: 'OldPartner Corp', time: '1 day ago' },
-  ]);
+  const fetchRequests = async () => {
+    try {
+      setLoadingRequests(true);
+      const response = await api.get('/consents/owner-requests'); // Adjust endpoint as per backend
+      setRequests(response.data);
+    } catch (err) {
+      console.error('Error fetching owner requests:', err);
+      setErrorRequests('Failed to fetch pending requests.');
+    } finally {
+      setLoadingRequests(false);
+    }
+  };
+
+  const fetchAuditLogs = async () => {
+    try {
+      setLoadingActivities(true);
+      const response = await api.get('/owner/audit-logs'); // New endpoint for audit logs
+      setActivityLogs(response.data);
+    } catch (err) {
+      console.error('Error fetching audit logs:', err);
+      setErrorActivities('Failed to fetch audit logs.');
+    } finally {
+      setLoadingActivities(false);
+    }
+  };
 
   // 3. Functional Requirement: Handle Approve/Reject with Timestamps
-  const handleAction = (requestId, action) => {
-    const timestamp = new Date().toLocaleTimeString();
-    const targetReq = requests.find(r => r.id === requestId);
-
-    // Update Request Status
-    setRequests(prev => prev.filter(req => req.id !== requestId));
-
-    // Create New Audit Log Entry
-    const newEntry = {
-      id: Date.now(),
-      type: action === 'APPROVED' ? 'granted' : 'revoked',
-      description: `${action}: ${targetReq.requester}`,
-      time: `Just now (${timestamp})`
-    };
-
-    setActivityLogs([newEntry, ...activityLogs]);
+  const handleAction = async (requestId, action) => {
+    try {
+      const response = await api.post('/consents/respond', { 
+        requestId,
+        status: action 
+      });
+      alert(response.data.message);
+      fetchRequests();
+      fetchAuditLogs();
+    } catch (error) {
+      alert(`Error: ${error.response?.data?.message || 'Failed to update request'}`);
+    }
   };
+
+  useEffect(() => {
+    if (!authLoading && authUser) {
+      fetchRequests();
+      fetchAuditLogs();
+    }
+  }, [authLoading, authUser]);
 
   const activityIcon = (type) => {
     switch (type) {
@@ -47,7 +73,7 @@ const OwnerDashboard = () => {
   return (
     <div className="p-8 bg-slate-50 min-h-screen">
       <div className="mb-8">
-        <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Welcome back, John</h2>
+        <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Welcome back, {authUser.name}</h2>
         <p className="text-slate-500">Manage your data consents and track access history.</p>
       </div>
 
@@ -70,7 +96,11 @@ const OwnerDashboard = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {requests.length === 0 ? (
+                {loadingRequests ? (
+                  <tr><td colSpan="3" className="py-10 text-center"><Loader2 className="animate-spin mx-auto text-indigo-500" /></td></tr>
+                ) : errorRequests ? (
+                  <tr><td colSpan="3" className="py-10 text-center text-red-500">{errorRequests}</td></tr>
+                ) : requests.length === 0 ? (
                   <tr><td colSpan="3" className="py-10 text-center text-slate-400">No pending requests</td></tr>
                 ) : (
                   requests.map((request) => (
@@ -112,17 +142,25 @@ const OwnerDashboard = () => {
             <Clock className="h-5 w-5 text-indigo-500" /> Audit Trail
           </h3>
           <ul className="space-y-6">
-            {activityLogs.map((activity) => (
-              <li key={activity.id} className="flex items-start space-x-3 group">
-                <div className="mt-1 p-1 bg-slate-50 rounded-full group-hover:scale-110 transition-transform">
-                  {activityIcon(activity.type)}
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-slate-900">{activity.description}</p>
-                  <p className="text-[11px] font-mono text-slate-400 uppercase tracking-widest">{activity.time}</p>
-                </div>
-              </li>
-            ))}
+            {loadingActivities ? (
+              <li className="text-center py-4"><Loader2 className="animate-spin mx-auto text-indigo-500" /></li>
+            ) : errorActivities ? (
+              <li className="text-center py-4 text-red-500">{errorActivities}</li>
+            ) : activityLogs.length === 0 ? (
+              <li className="text-center py-4 text-slate-400">No recent activity.</li>
+            ) : (
+              activityLogs.map((activity) => (
+                <li key={activity.id} className="flex items-start space-x-3 group">
+                  <div className="mt-1 p-1 bg-slate-50 rounded-full group-hover:scale-110 transition-transform">
+                    {activityIcon(activity.type)}
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-slate-900">{activity.description}</p>
+                    <p className="text-[11px] font-mono text-slate-400 uppercase tracking-widest">{activity.time}</p>
+                  </div>
+                </li>
+              ))
+            )}
           </ul>
         </div>
       </div>

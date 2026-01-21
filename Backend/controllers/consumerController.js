@@ -70,7 +70,7 @@ export const getMyRequests = async (req, res) => {
 
   try {
     const [requests] = await pool.execute(
-      'SELECT cr.id, u.name AS ownerName, r.category AS recordType, cr.status, cr.request_date, r.id AS recordId FROM consumer_requests cr JOIN users u ON cr.owner_id = u.id JOIN records r ON cr.record_id = r.id WHERE cr.consumer_id = ?',
+      'SELECT cr.id, u.name AS ownerName, r.category AS recordType, cr.status, cr.request_date AS requestedDate, r.id AS recordId FROM consumer_requests cr JOIN users u ON cr.owner_id = u.id JOIN records r ON cr.record_id = r.id WHERE cr.consumer_id = ?',
       [consumerId]
     );
     res.json(requests);

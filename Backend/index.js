@@ -32,9 +32,9 @@ testDB();
 
 // 2. API Routes Setup
 app.use('/api/auth', authRoutes);         // Login/Register ke liye
-app.use('/api/records', recordRoutes);    // Owner records manage karne ke liye
+app.use('/api/owner', recordRoutes);    // Owner records manage karne ke liye
 app.use('/api/consents', consentRoutes);  // Requests aur Approval flow ke liye
-app.use('/api/audit', auditRoutes);       // Logs check karne ke liye
+app.use('/api/owner/audit-logs', auditRoutes);       // Logs check karne ke liye
 app.use('/api/consumer', consumerRoutes); // Consumer routes ke liye
 
 // Global Error Handler

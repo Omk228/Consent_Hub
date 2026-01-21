@@ -2,18 +2,16 @@ import express from 'express';
 import { 
   getPendingRequests, 
   updateRequestStatus,
-  requestConsent // <--- YE MISSING THA, ISKO IMPORT KIYA
+  requestConsent 
 } from '../controllers/consentController.js'; 
-import authMiddleware from '../middleware/authMiddleware.js'; // <--- YE MISSING THA
+import authMiddleware from '../middleware/authMiddleware.js'; 
 
 const router = express.Router();
 
-// 1. Consumer request bhejega (AuthMiddleware aur Controller Function lagaya hai)
-// Ab ye body se 'consumer_id' nahi maangega, token se nikalega
+// 1. Consumer request bhejega
 router.post('/request', authMiddleware, requestConsent); 
 
-// 2. Owner apni pending requests dekhega (Isme bhi middleware zaroori hai)
-router.get('/pending/:ownerId', authMiddleware, getPendingRequests);
+router.get('/owner-requests', authMiddleware, getPendingRequests);
 
 // 3. Owner request approve ya reject karega
 router.put('/update-status', authMiddleware, updateRequestStatus);

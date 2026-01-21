@@ -40,45 +40,61 @@ export const requestConsent = async (req, res) => {
 
 // 2. Owner requests fetch karega
 export const getPendingRequests = async (req, res) => {
-  const { ownerId } = req.params; //
-  console.log("Fetching pending requests for Owner ID:", ownerId); //
-  
+  // Owner ID jo Auth Middleware ne Token se nikaali hai
+  const owner_id = req.user.id;
+  console.log("Fetching pending requests for Owner ID:", owner_id);
+
   try {
     const [rows] = await pool.execute(`
-      SELECT consents.*, users.name as consumer_name, records.record_name 
-      FROM consents 
-      JOIN users ON consents.consumer_id = users.id 
-      JOIN records ON consents.record_id = records.id 
-      WHERE consents.owner_id = ? AND consents.status = 'PENDING'
-    `, [ownerId]); //
-    res.json(rows); //
+      SELECT 
+        c.id,
+        u.name AS requester, 
+        'N/A' AS requesterDoctor, 
+        c.status,
+        c.purpose,
+        JSON_ARRAY(r.category) AS dataTypes, 
+        c.created_at AS requestedDate,
+        DATE_ADD(c.created_at, INTERVAL 6 MONTH) AS expiresDate
+      FROM consents c
+      JOIN users u ON c.consumer_id = u.id 
+      JOIN records r ON c.record_id = r.id 
+      WHERE c.owner_id = ?
+    `, [owner_id]);
+
+    const formattedRows = rows.map(row => ({
+      ...row,
+      dataTypes: JSON.parse(row.dataTypes) // JSON string ko array mein parse karo
+    }));
+
+    res.json(formattedRows);
   } catch (error) {
-    console.error("Fetch Error:", error.message); //
-    res.status(500).json({ error: error.message }); //
+    console.error("Fetch Error:", error.message);
+    res.status(500).json({ error: error.message });
   }
 };
 
 // 3. Approve/Reject Logic + Audit Logging
 export const updateRequestStatus = async (req, res) => {
-  const { consentId, status, ownerId } = req.body; //
-  console.log(`Updating Consent ${consentId} to status: ${status}`); //
-  
+  const { requestId, status } = req.body;
+  const owner_id = req.user.id; // Token se extract kiya gaya ID
+  console.log(`Updating Consent ${requestId} to status: ${status} by Owner ID: ${owner_id}`);
+
   try {
     // A. Status update karna
     await pool.execute(
-      'UPDATE consents SET status = ? WHERE id = ?',
-      [status, consentId]
-    ); //
+      'UPDATE consents SET status = ? WHERE id = ? AND owner_id = ?',
+      [status, requestId, owner_id]
+    );
 
     // B. Audit Log entry (Assignment requirement)
     await pool.execute(
       'INSERT INTO audit_logs (user_id, action, details) VALUES (?, ?, ?)',
-      [ownerId, `CONSENT_${status}`, `Consent ID ${consentId} was updated to ${status}`]
-    ); //
+      [owner_id, `CONSENT_${status}`, `Consent ID ${requestId} was updated to ${status}`]
+    );
 
-    res.json({ message: `Request ${status} and logged successfully!` }); //
+    res.json({ message: `Request ${status} and logged successfully!` });
   } catch (error) {
-    console.error("Update Status Error:", error.message); //
-    res.status(500).json({ error: error.message }); //
+    console.error("Update Status Error:", error.message);
+    res.status(500).json({ error: error.message });
   }
 };

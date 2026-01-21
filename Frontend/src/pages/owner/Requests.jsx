@@ -1,50 +1,47 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import api from '../../api/axios';
+import { useAuth } from '../../api/AuthContext';
 // Lucide icons standard hain, ye error nahi denge agar installed hain
-import { Check, X, Hourglass, CheckCircle, XCircle, FileText, CalendarDays, Clock } from 'lucide-react';
+import { Check, X, Hourglass, CheckCircle, XCircle, FileText, CalendarDays, Clock, Loader2 } from 'lucide-react';
 
 const Requests = () => {
+  const { user: authUser, loading: authLoading } = useAuth();
   const [activeFilter, setActiveFilter] = useState('Pending');
+  const [requests, setRequests] = useState([]);
+  const [loadingRequests, setLoadingRequests] = useState(true);
+  const [errorRequests, setErrorRequests] = useState('');
 
-  // Initial Mock Data
-  const [requests, setRequests] = useState([
-    {
-      id: 'REQ-001',
-      requester: 'Acme Healthcare',
-      requesterDoctor: 'Dr. Sarah Chen',
-      status: 'PENDING',
-      purpose: 'Medical Research Study on Cardiovascular Health',
-      dataTypes: ['Health Records', 'Lab Results'],
-      requestedDate: 'Jan 15, 2026',
-      expiresDate: 'Jul 15, 2026',
-    },
-    {
-      id: 'REQ-002',
-      requester: 'DataCorp Analytics',
-      requesterDoctor: 'Analytics Team',
-      status: 'PENDING',
-      purpose: 'Market Analysis for Consumer Trends',
-      dataTypes: ['Demographics', 'Purchase History'],
-      requestedDate: 'Jan 14, 2026',
-      expiresDate: 'Jan 14, 2027',
-    },
-    {
-      id: 'REQ-003',
-      requester: 'FinTech Solutions',
-      requesterDoctor: 'Risk Assessment Dept.',
-      status: 'PENDING',
-      purpose: 'Credit Scoring and Fraud Detection',
-      dataTypes: ['Financial Transactions', 'Credit Score'],
-      requestedDate: 'Jan 12, 2026',
-      expiresDate: 'Feb 12, 2026',
+  const fetchRequests = async () => {
+    try {
+      setLoadingRequests(true);
+      const response = await api.get('/consents/owner-requests'); // Adjust endpoint as per backend
+      setRequests(response.data);
+    } catch (err) {
+      console.error('Error fetching requests:', err);
+      setErrorRequests('Failed to fetch requests.');
+    } finally {
+      setLoadingRequests(false);
     }
-  ]);
+  };
 
-  // Handler function with Audit Simulation
-  const handleAction = (id, newState) => {
-    setRequests(prev => 
-      prev.map(req => req.id === id ? { ...req, status: newState } : req)
-    );
-    console.log(`Audit: Request ${id} set to ${newState} at ${new Date().toISOString()}`);
+  useEffect(() => {
+    if (!authLoading && authUser) {
+      fetchRequests();
+    }
+  }, [authLoading, authUser]);
+
+  // Handler function with API Call
+  const handleAction = async (requestId, newState) => {
+    try {
+      const response = await api.post('/consents/respond', {
+        requestId,
+        status: newState
+      });
+      alert(response.data.message);
+      fetchRequests(); // Refetch requests after action
+    } catch (error) {
+      alert(`Error: ${error.response?.data?.message || 'Failed to update request'}`);
+    }
   };
 
   const filteredRequests = requests.filter(req => {
@@ -76,7 +73,22 @@ const Requests = () => {
 
       {/* Request Cards Grid */}
       <div className="grid grid-cols-1 gap-6">
-        {filteredRequests.length > 0 ? (
+        {loadingRequests ? (
+          <div className="text-center py-24 bg-white rounded-3xl border-2 border-dashed border-slate-100">
+            <Loader2 className="mx-auto h-12 w-12 text-indigo-500 mb-4 animate-spin" />
+            <p className="text-slate-400 font-bold uppercase tracking-widest text-sm">Loading requests...</p>
+          </div>
+        ) : errorRequests ? (
+          <div className="text-center py-24 bg-white rounded-3xl border-2 border-dashed border-red-100">
+            <XCircle className="mx-auto h-12 w-12 text-red-500 mb-4" />
+            <p className="text-red-500 font-bold uppercase tracking-widest text-sm">{errorRequests}</p>
+          </div>
+        ) : filteredRequests.length === 0 ? (
+          <div className="text-center py-24 bg-white rounded-3xl border-2 border-dashed border-slate-100">
+            <Hourglass className="mx-auto h-12 w-12 text-slate-200 mb-4" />
+            <p className="text-slate-400 font-bold uppercase tracking-widest text-sm">No requests found in this category</p>
+          </div>
+        ) : (
           filteredRequests.map((request) => (
             <div key={request.id} className="bg-white rounded-3xl shadow-sm border border-slate-100 p-6 flex flex-col md:flex-row justify-between items-start md:items-center hover:shadow-md transition-shadow duration-300">
               <div className="flex-1 space-y-4">
@@ -124,13 +136,8 @@ const Requests = () => {
                 </div>
               )}
             </div>
-          ))
-        ) : (
-          <div className="text-center py-24 bg-white rounded-3xl border-2 border-dashed border-slate-100">
-            <Hourglass className="mx-auto h-12 w-12 text-slate-200 mb-4 animate-pulse" />
-            <p className="text-slate-400 font-bold uppercase tracking-widest text-sm">No requests found in this category</p>
-          </div>
-        )}
+          )) // Close map
+        )} // Close ternary
       </div>
     </div>
   );
