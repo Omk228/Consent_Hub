@@ -5,7 +5,7 @@ import { Button } from '../../components/common/Button';
 import api from '../../api/axios'; // Import the axios instance
 
 const ViewRecord = () => {
-  const { ownerId } = useParams(); // Change 'id' to 'ownerId' as per backend route
+  const { recordId } = useParams(); // Change 'ownerId' to 'recordId'
   const navigate = useNavigate();
 
   const [record, setRecord] = useState(null);
@@ -15,11 +15,9 @@ const ViewRecord = () => {
   useEffect(() => {
     const fetchRecord = async () => {
       try {
-        const response = await api.get(`/consumer/owner-records/${ownerId}`);
-        // Assuming the backend returns an array of records, we'll take the first one for now
-        // Or you might need to adjust the backend to return a single record based on record ID
-        // For now, let's assume `response.data` is the record object directly
-        setRecord(response.data && response.data.length > 0 ? response.data[0] : null); // Adjust based on actual backend response structure
+        console.log('Fetching record with ID:', recordId);
+        const response = await api.get(`/consumer/record/${recordId}`);
+        setRecord(response.data);
       } catch (err) {
         console.error('Failed to fetch record:', err);
         setError(err.response?.data?.message || 'Error fetching record.');
@@ -29,7 +27,7 @@ const ViewRecord = () => {
     };
 
     fetchRecord();
-  }, [ownerId]); // Rerun when ownerId changes
+  }, [recordId]); // Rerun when recordId changes
 
   if (isLoading) {
     return (
@@ -41,6 +39,7 @@ const ViewRecord = () => {
     );
   }
 
+  console.log('After isLoading check. Error:', error);
   if (error) {
     return (
       <div className="max-w-2xl mx-auto mt-20 p-12 bg-white rounded-3xl border-2 border-dashed border-rose-200 text-center shadow-xl shadow-rose-50">
@@ -54,7 +53,7 @@ const ViewRecord = () => {
     );
   }
 
-  if (!record || record.status !== 'APPROVED') { // Check if record exists
+  if (!record) { // Check if record exists; consent status already checked by backend
     return (
       <div className="max-w-2xl mx-auto mt-20 p-12 bg-white rounded-3xl border-2 border-dashed border-rose-200 text-center shadow-xl shadow-rose-50">
         <ShieldAlert className="h-16 w-16 text-rose-500 mx-auto mb-6" />
@@ -113,6 +112,7 @@ const ViewRecord = () => {
           {[
             { label: 'Record Name', value: record?.record_name, icon: FileText },
             { label: 'Category', value: record?.category, icon: FileText },
+            { label: 'Content', value: record?.content, icon: FileText },
           ].map((item, idx) => (
             <div key={idx} className="space-y-1">
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">

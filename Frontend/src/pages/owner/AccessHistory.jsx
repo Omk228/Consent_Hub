@@ -4,7 +4,7 @@ import { useAuth } from '../../api/AuthContext';
 // Lucide icons standard hain, ye error nahi denge agar installed hain
 import { Check, X, Hourglass, CheckCircle, XCircle, FileText, CalendarDays, Clock, Loader2 } from 'lucide-react';
 
-const Requests = () => {
+const AccessHistory = () => {
   const { user: authUser, loading: authLoading } = useAuth();
   const [activeFilter, setActiveFilter] = useState('Pending');
   const [requests, setRequests] = useState([]);
@@ -14,7 +14,7 @@ const Requests = () => {
   const fetchRequests = async () => {
     try {
       setLoadingRequests(true);
-      const response = await api.get('/consents/owner-requests'); // Adjust endpoint as per backend
+      const response = await api.get('/owner/all-requests'); // Naya endpoint
       setRequests(response.data);
     } catch (err) {
       console.error('Error fetching requests:', err);
@@ -30,20 +30,6 @@ const Requests = () => {
     }
   }, [authLoading, authUser]);
 
-  // Handler function with API Call
-  const handleAction = async (requestId, newState) => {
-    try {
-      const response = await api.post('/consents/respond', {
-        requestId,
-        status: newState
-      });
-      alert(response.data.message);
-      fetchRequests(); // Refetch requests after action
-    } catch (error) {
-      alert(`Error: ${error.response?.data?.message || 'Failed to update request'}`);
-    }
-  };
-
   const filteredRequests = requests.filter(req => {
     if (activeFilter === 'All') return true;
     return req.status === activeFilter.toUpperCase();
@@ -52,13 +38,13 @@ const Requests = () => {
   return (
     <div className="p-4 md:p-8 bg-slate-50 min-h-screen">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Access Requests</h1>
-        <p className="text-slate-500 mt-1">Review and manage data access permissions with full audit trail.</p>
+        <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Access History</h1>
+        <p className="text-slate-500 mt-1">View your complete history of data access requests and their statuses.</p>
       </div>
 
       {/* Custom Tabs (No external library needed) */}
       <div className="flex space-x-8 mb-8 border-b border-slate-200">
-        {['Pending', 'Approved', 'Denied', 'All'].map((tab) => (
+        {['Pending', 'Approved', 'Rejected', 'Revoked', 'All'].map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveFilter(tab)}
@@ -118,23 +104,6 @@ const Requests = () => {
                   <span className="flex items-center gap-2"><Clock size={14} /> Expires: {request.expiresDate}</span>
                 </div>
               </div>
-
-              {request.status === 'PENDING' && (
-                <div className="flex flex-row md:flex-col gap-3 mt-6 md:mt-0 md:ml-10 w-full md:w-auto">
-                  <button
-                    onClick={() => handleAction(request.id, 'APPROVED')}
-                    className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center px-8 py-3 rounded-2xl shadow-lg shadow-indigo-100 transition-all font-bold active:scale-95"
-                  >
-                    <Check className="w-4 h-4 mr-2" /> Approve
-                  </button>
-                  <button
-                    onClick={() => handleAction(request.id, 'DENIED')}
-                    className="flex-1 bg-white border-2 border-slate-100 text-slate-500 hover:bg-slate-50 flex items-center justify-center px-8 py-3 rounded-2xl transition-all font-bold active:scale-95"
-                  >
-                    <X className="w-4 h-4 mr-2" /> Deny
-                  </button>
-                </div>
-              )}
             </div>
           )) // Close map
         )} // Close ternary
@@ -143,4 +112,4 @@ const Requests = () => {
   );
 };
 
-export default Requests;
+export default AccessHistory;

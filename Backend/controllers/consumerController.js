@@ -3,22 +3,14 @@ import pool from '../config/db.js';
 // 1. Owner ko email se search karna
 export const searchOwner = async (req, res) => {
   const { email } = req.query;
-
-  // Validation: Agar email nahi bheja toh error de do
-  if (!email) {
-    return res.status(400).json({ message: "Email is required for search." });
-  }
+  if (!email) return res.status(400).json({ message: "Email is required." });
 
   try {
     const [owners] = await pool.execute(
-      'SELECT id, name, email FROM users WHERE email = ? AND role = "DATA_OWNER"', // Changed role
+      'SELECT id, name, email FROM users WHERE email = ? AND (role = "owner" OR role = "OWNER" OR role = "DATA_OWNER")', 
       [email]
     );
-
-    if (owners.length === 0) {
-      return res.status(404).json({ message: "No data owner found with this email." }); // Changed message
-    }
-
+    if (owners.length === 0) return res.status(404).json({ message: "No data owner found." });
     res.json(owners[0]); 
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -28,49 +20,41 @@ export const searchOwner = async (req, res) => {
 // 2. Owner ke records list karna
 export const getOwnerPublicRecords = async (req, res) => {
   const { ownerId } = req.params;
-
-  if (!ownerId) {
-    return res.status(400).json({ message: "Owner ID zaroori hai!" });
-  }
-
   try {
     const [records] = await pool.execute(
-      'SELECT r.id, r.record_name, r.category, u.name AS ownerName FROM records r JOIN users u ON r.owner_id = u.id WHERE r.owner_id = ?',
+      'SELECT id, record_name, category FROM records WHERE owner_id = ?',
       [ownerId]
     );
-
-    // Agar owner ke koi records nahi hain toh empty array jayega, crash nahi hoga
     res.json(records);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
 
-// 3. Sabhi available data owners ko list karna
+// 3. Sabhi available data owners list karna
 export const getAvailableOwners = async (req, res) => {
   try {
-    const [owners] = await pool.execute(
-      'SELECT id, name, email, category FROM users WHERE role = "OWNER"' // Assuming 'category' field in users table for owners
-    );
+    const [owners] = await pool.execute('SELECT id, name, email FROM users WHERE role IN ("owner", "OWNER", "DATA_OWNER")');
     res.json(owners);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
 
-// 4. Consumer ki apni request history list karna
+// 4. Consumer ki apni request history (Access History Fix)
 export const getMyRequests = async (req, res) => {
-  // Assuming user ID is available from auth middleware after authentication
-  // For now, let's use a placeholder if req.user is not yet implemented
   const consumerId = req.user ? req.user.id : null; 
-
-  if (!consumerId) {
-    return res.status(401).json({ message: "Authentication required: Consumer ID not found." });
-  }
+  if (!consumerId) return res.status(401).json({ message: "Unauthorized" });
 
   try {
     const [requests] = await pool.execute(
-      'SELECT cr.id, u.name AS ownerName, r.category AS recordType, cr.status, cr.request_date AS requestedDate, r.id AS recordId FROM consumer_requests cr JOIN users u ON cr.owner_id = u.id JOIN records r ON cr.record_id = r.id WHERE cr.consumer_id = ?',
+      `SELECT cr.id, u.name AS ownerName, r.record_name AS recordType, 
+       cr.status, cr.created_at, r.id AS recordId 
+       FROM consents cr 
+       JOIN users u ON cr.owner_id = u.id 
+       JOIN records r ON cr.record_id = r.id 
+       WHERE cr.consumer_id = ?
+       ORDER BY cr.created_at DESC`,
       [consumerId]
     );
     res.json(requests);
@@ -79,31 +63,55 @@ export const getMyRequests = async (req, res) => {
   }
 };
 
-// 5. Consumer data access request send karna
+// 5. Consumer data access request bhejnat
 export const requestAccess = async (req, res) => {
-  const { ownerId, recordId } = req.body; // Assuming recordId is also sent from frontend if needed
-  const consumerId = req.user ? req.user.id : null; // Assuming user ID is available from auth middleware
-
-  if (!consumerId || !ownerId) {
-    return res.status(400).json({ message: "Consumer ID aur Owner ID zaroori hain!" });
-  }
+  const { ownerId, recordId } = req.body; 
+  const consumerId = req.user.id; 
 
   try {
-    // Check if a record exists for the given ownerId (optional, but good for data integrity)
-    const [records] = await pool.execute('SELECT id FROM records WHERE owner_id = ? LIMIT 1', [ownerId]);
-    if (records.length === 0) {
-      return res.status(404).json({ message: "No records found for this owner." });
-    }
-    const actualRecordId = recordId || records[0].id; // Use provided recordId or default to first found record
-
-    // Insert the request into consumer_requests table
     await pool.execute(
-      'INSERT INTO consumer_requests (consumer_id, owner_id, record_id, status, request_date) VALUES (?, ?, ?, ?, NOW())',
-      [consumerId, ownerId, actualRecordId, 'PENDING'] // Default status PENDING
+      'INSERT INTO consents (consumer_id, owner_id, record_id, status, purpose, created_at) VALUES (?, ?, ?, ?, ?, NOW())',
+      [consumerId, ownerId, recordId, 'PENDING', 'General Access Request'] 
+    );
+    res.status(201).json({ message: "Access request sent successfully!" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+
+// 6. Consumer approved record ka data dekhega
+export const getRecordData = async (req, res) => {
+  const { recordId } = req.params;
+  const consumerId = req.user.id;
+
+  try {
+    // Pehle check karo ki consumer ke paas is record ke liye APPROVED consent hai ya nahi
+    const [consents] = await pool.execute(
+      'SELECT * FROM consents WHERE consumer_id = ? AND record_id = ? AND status = \'APPROVED\'',
+      [consumerId, recordId]
     );
 
-    res.status(201).json({ message: "Access request sent successfully." });
+    if (consents.length === 0) {
+      return res.status(403).json({ message: "Access Restricted: You do not have approved consent for this record." });
+    }
+
+    // Agar approved consent hai, toh record ka detailed data fetch karo
+    const [records] = await pool.execute(
+      `SELECT r.id, r.owner_id, u.name AS ownerName, r.record_name, r.category, r.content, r.status, r.created_at 
+       FROM records r
+       JOIN users u ON r.owner_id = u.id
+       WHERE r.id = ?`,
+      [recordId]
+    );
+
+    if (records.length === 0) {
+      return res.status(404).json({ message: "Record not found." });
+    }
+
+    res.json(records[0]); // Sirf pehla record return karo
   } catch (error) {
+    console.error("❌ Error fetching record data:", error.message);
     res.status(500).json({ error: error.message });
   }
 };

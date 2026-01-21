@@ -11,8 +11,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
   const ownerLinks = [
     { name: 'Dashboard', path: '/owner/dashboard', icon: LayoutDashboard },
     { name: 'My Records', path: '/owner/record', icon: FileText },
-    { name: 'Access Requests', path: '/owner/requests', icon: Users },
-    { name: 'Consent History', path: '/owner/consent-history', icon: History },
+    { name: 'Access History', path: '/owner/access-history', icon: History },
     { name: 'Audit Logs', path: '/owner/audit-logs', icon: ShieldCheck },
   ];
 

@@ -9,6 +9,7 @@ import recordRoutes from './routes/recordRoutes.js'; // Ye banayenge hum
 import consentRoutes from './routes/consentRoutes.js'; // Ye bhi
 import auditRoutes from './routes/auditRoutes.js'; // Audit logs ke liye
 import consumerRoutes from './routes/consumerRoutes.js';
+import ownerRoutes from './routes/ownerRoutes.js';
 
 dotenv.config();
 console.log("JWT_SECRET from .env:", process.env.JWT_SECRET ? "Loaded" : "Not Loaded"); // NEW LOG
@@ -36,6 +37,7 @@ app.use('/api/owner', recordRoutes);    // Owner records manage karne ke liye
 app.use('/api/consents', consentRoutes);  // Requests aur Approval flow ke liye
 app.use('/api/owner/audit-logs', auditRoutes);       // Logs check karne ke liye
 app.use('/api/consumer', consumerRoutes); // Consumer routes ke liye
+app.use('/api/owner', ownerRoutes); // Owner routes ke liye
 
 // Global Error Handler
 app.use((err, req, res, next) => {

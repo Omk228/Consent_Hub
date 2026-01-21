@@ -7,10 +7,9 @@ import { useAuth } from './api/AuthContext';
 import Login from "./pages/auth/Login"; 
 import Register from "./pages/auth/Register";
 import OwnerDashboard from "./pages/owner/Dashboard";
-import PendingRequests from './pages/owner/Requests';
+import AccessHistory from './pages/owner/AccessHistory';
 import AuditLogs from './pages/owner/AuditLogs';
 import MyRecords from './pages/owner/MyRecords';
-import ConsentHistory from './pages/owner/ConsentHistory';
 import ConsumerDashboard from './pages/consumer/Dashboard';
 import SearchOwner from './pages/consumer/SearchOwner';
 
@@ -31,10 +30,9 @@ const AppRoutes = () => {
           <RoleGuard allowedRole="OWNER">
             <Routes>
               <Route path="dashboard" element={<OwnerDashboard />} />
-              <Route path="requests" element={<PendingRequests />} />
+              <Route path="access-history" element={<AccessHistory />} />
               <Route path="audit-logs" element={<AuditLogs />} />
               <Route path="record" element={<MyRecords />} />
-              <Route path="consent-history" element={<ConsentHistory />} />
             </Routes>
           </RoleGuard>
         </ProtectedRoute>
@@ -47,8 +45,8 @@ const AppRoutes = () => {
             <Routes>
               <Route path="dashboard" element={<ConsumerDashboard />} />
               <Route path="search" element={<SearchOwner />} />
-              <Route path="requests" element={<ConsumerRequests />} /> {/* Added this path */}
-              <Route path="view/:id" element={<ViewRecord />} />
+              <Route path="requests" element={<ConsumerRequests />} />
+              <Route path="view-record/:recordId" element={<ViewRecord />} /> {/* Updated this path */}
             </Routes>
           </RoleGuard>
         </ProtectedRoute>
