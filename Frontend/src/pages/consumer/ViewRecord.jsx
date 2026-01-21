@@ -53,6 +53,7 @@ const ViewRecord = () => {
     );
   }
 
+  console.log('Final check before rendering. Record:', record); // Add this line
   if (!record) { // Check if record exists; consent status already checked by backend
     return (
       <div className="max-w-2xl mx-auto mt-20 p-12 bg-white rounded-3xl border-2 border-dashed border-rose-200 text-center shadow-xl shadow-rose-50">

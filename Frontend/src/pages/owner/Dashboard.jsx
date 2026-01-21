@@ -59,6 +59,7 @@ const OwnerDashboard = () => {
   };
 
   const handleAction = async (requestId, action) => {
+    console.log(`Attempting to update request ID: ${requestId} with status: ${action}`); // Added console.log
     try {
       setActionLoading(requestId);
       const response = await api.put('/owner/update-status', { 

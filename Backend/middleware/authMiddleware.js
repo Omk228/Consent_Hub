@@ -25,20 +25,23 @@ const authMiddleware = (req, res, next) => {
   // 3. Verify token
   try {
     console.log("Auth Middleware: Verifying token...");
+    console.log("Auth Middleware: JWT_SECRET used for verification:", process.env.JWT_SECRET ? "Present" : "MISSING");
+    
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
-    console.log("Auth Middleware: Token verified. Decoded user ID:", decoded.id);
+    // FIX: Agar token ke andar user object hai toh use flat karke req.user mein daalna
+    // Isse req.user.id hamesha accessible rahegi
+    req.user = decoded.user ? decoded.user : decoded; 
     
-    // Request object mein user data daalna taaki Controller use kar sake
-    req.user = decoded; 
+    console.log("Auth Middleware: Token verified. Decoded user ID:", req.user.id);
+    console.log("Auth Middleware: req.user after setting:", req.user);
     
     // Agle function (Controller) par bhejo
     next();
   } catch (err) {
-    console.error("Auth Middleware: Token verification failed:", err.message);
+    console.error("Auth Middleware: Token verification failed. Error details:", err.message);
     res.status(401).json({ message: 'Token is not valid' });
   }
 };
 
-// Ab ye ReferenceError nahi dega
 export default authMiddleware;

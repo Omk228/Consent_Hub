@@ -14,6 +14,11 @@ const ConsumerDashboard = () => {
   const [loadingRequests, setLoadingRequests] = useState(true);
   const [errorOwners, setErrorOwners] = useState('');
   const [errorRequests, setErrorRequests] = useState('');
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [selectedOwner, setSelectedOwner] = useState(null);
+  const [ownerRecords, setOwnerRecords] = useState([]);
+  const [loadingOwnerRecords, setLoadingOwnerRecords] = useState(false);
+  const [errorOwnerRecords, setErrorOwnerRecords] = useState('');
   const navigate = useNavigate();
 
   const fetchRequests = async () => {
@@ -26,6 +31,19 @@ const ConsumerDashboard = () => {
       setErrorRequests('Failed to fetch requests.');
     } finally {
       setLoadingRequests(false);
+    }
+  };
+
+  const fetchOwnerRecords = async (ownerId) => {
+    try {
+      setLoadingOwnerRecords(true);
+      const response = await api.get(`/consumer/owner-records/${ownerId}`);
+      setOwnerRecords(response.data);
+    } catch (err) {
+      console.error('Error fetching owner records:', err);
+      setErrorOwnerRecords('Failed to fetch owner records.');
+    } finally {
+      setLoadingOwnerRecords(false);
     }
   };
 
@@ -47,24 +65,25 @@ const ConsumerDashboard = () => {
     }
   }, [authLoading, authUser]);
 
-  const handleRequest = async (ownerId) => {
-    try {
-      if (!authUser) return alert("Please login first!");
+  const handleOpenRequestModal = async (owner) => {
+    if (!authUser) return alert("Please login first!");
+    setSelectedOwner(owner);
+    await fetchOwnerRecords(owner.id);
+    setShowCategoryModal(true);
+  };
 
-      // FIXED: Hum 'consumer_id' nahi bhej rahe kyunki Backend Token se nikal lega
-      const response = await api.post('/consents/request', { 
+  const requestAccess = async (ownerId, recordId) => {
+    try {
+      const response = await api.post('/consents/request', {
         owner_id: ownerId,
-        record_id: 1, 
+        record_id: recordId,
         purpose: "Access requested for verification"
       });
-
       alert(response.data.message);
-      
-      // Request list refresh karo taaki Status table update ho jaye
-      fetchRequests();
-
+      setShowCategoryModal(false);
+      fetchRequests(); // Request list refresh karo
     } catch (error) {
-      alert(`Error: ${error.response?.data?.message || 'Failed to send request'}`);
+      alert(`Error: ${error.response?.data?.message || 'Failed to send request'}`);
     }
   };
 
@@ -99,7 +118,7 @@ const ConsumerDashboard = () => {
                   <p className="font-bold text-sm text-slate-800">{owner.name}</p>
                   <p className="text-[10px] text-indigo-600 font-bold uppercase">{owner.category || 'General'}</p>
                 </div>
-                <Button size="sm" onClick={() => handleRequest(owner.id)} className="opacity-0 group-hover:opacity-100 transition-opacity">
+                <Button size="sm" onClick={() => handleOpenRequestModal(owner)} className="opacity-0 group-hover:opacity-100 transition-opacity">
                   <Send size={14} className="mr-1" /> Request
                 </Button>
               </div>
@@ -117,41 +136,88 @@ const ConsumerDashboard = () => {
             <tr>
               <th className="px-6 py-4 text-left">Data Owner</th>
               <th className="px-6 py-4 text-left">Status</th>
-              <th className="px-6 py-4 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {loadingRequests ? (
-              <tr><td colSpan="3" className="py-8"><Loader2 className="animate-spin mx-auto text-indigo-500" /></td></tr>
-            ) : myRequests.length === 0 ? (
-              <tr><td colSpan="3" className="text-center py-8 text-slate-500">No requests found.</td></tr>
-            ) : (
-              myRequests.map(req => (
-                <tr key={req.id} className="hover:bg-slate-50/50 transition-colors">
-                  <td className="px-6 py-4 font-medium text-slate-900">{req.owner_name || req.ownerName || 'Unknown Owner'}</td>
-                  <td className="px-6 py-4">
-                    <span className={`px-3 py-1 rounded-full text-[10px] font-bold ${
-                      req.status === 'APPROVED' ? 'bg-green-100 text-green-700' : 
-                      req.status === 'REJECTED' ? 'bg-red-100 text-red-700' : 
-                      req.status === 'REVOKED' ? 'bg-red-100 text-red-700' : 
-                      'bg-yellow-100 text-yellow-700'
-                    }`}>
-                      {req.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <Button variant="ghost" size="sm" disabled={req.status !== 'APPROVED'} onClick={() => handleViewRecord(req.record_id)}>
-                      <Eye size={16} className="mr-1" /> View
-                    </Button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-};
-
+              <th className="px-6 py-4 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {loadingRequests ? (
+              <tr><td colSpan="3" className="py-8"><Loader2 className="animate-spin mx-auto text-indigo-500" /></td></tr>
+            ) : myRequests.length === 0 ? (
+              <tr><td colSpan="3" className="text-center py-8 text-slate-500">No requests found.</td></tr>
+            ) : (
+              myRequests.map(req => (
+                <tr key={req.id} className="hover:bg-slate-50/50 transition-colors">
+                  <td className="px-6 py-4 font-medium text-slate-900">{req.owner_name || req.ownerName || 'Unknown Owner'}</td>
+                  <td className="px-6 py-4">
+                    <span className={`px-3 py-1 rounded-full text-[10px] font-bold ${
+                      req.status === 'APPROVED' ? 'bg-green-100 text-green-700' : 
+                      req.status === 'REJECTED' ? 'bg-red-100 text-red-700' : 
+                      req.status === 'REVOKED' ? 'bg-red-100 text-red-700' : 
+                      'bg-yellow-100 text-yellow-700'
+                    }`}>
+                      {req.status}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <Button variant="ghost" size="sm" disabled={req.status !== 'APPROVED'} onClick={() => handleViewRecord(req.record_id)}>
+                      <Eye size={16} className="mr-1" /> View
+                    </Button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Category Selection Modal */}
+      {showCategoryModal && selectedOwner && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-3xl p-8 shadow-lg max-w-md w-full">
+            <h2 className="text-2xl font-bold text-slate-900 mb-4">Request Access for {selectedOwner?.name}</h2>
+            <p className="text-slate-600 mb-6">Select a category to request access:</p>
+
+            {loadingOwnerRecords ? (
+              <div className="py-10 text-center">
+                <Loader2 className="animate-spin mx-auto text-indigo-500 h-8 w-8" />
+                <p className="text-slate-400 mt-2">Loading categories...</p>
+              </div>
+            ) : errorOwnerRecords ? (
+              <div className="py-10 text-center text-red-500">
+                {errorOwnerRecords}
+              </div>
+            ) : ownerRecords.length === 0 ? (
+              <div className="py-10 text-center text-slate-400">
+                No data categories available from this owner.
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {ownerRecords.map((recordItem) => (
+                  <div key={recordItem.id} className="flex justify-between items-center bg-slate-50 p-4 rounded-xl border border-slate-200">
+                    <div>
+                      <p className="font-bold text-slate-900">{recordItem.record_name}</p>
+                      <p className="text-xs text-indigo-600 uppercase">{recordItem.category}</p>
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={() => requestAccess(selectedOwner.id, recordItem.id)}
+                      className="bg-indigo-600 hover:bg-indigo-700"
+                    >
+                      Request <Send size={14} className="ml-1" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            <Button variant="ghost" onClick={() => setShowCategoryModal(false)} className="mt-6 w-full text-slate-500 hover:text-slate-700">
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 export default ConsumerDashboard;

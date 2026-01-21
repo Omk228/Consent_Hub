@@ -10,17 +10,17 @@ import { getAuditLogs } from '../controllers/auditController.js';
 
 const router = express.Router();
 
-// 1. Pending requests dekhne ke liye (Sahi hai)
+// 1. Pending requests dekhne ke liye
 router.get('/pending', authMiddleware, getPendingRequests);
 
 // 1.1. Saari requests dekhne ke liye (Access History page ke liye)
 router.get('/all-requests', authMiddleware, getAllOwnerRequests);
 
-// 2. Approve ya Reject karne ke liye (Sahi hai)
+// 2. Approve ya Reject karne ke liye
 router.put('/update-status', authMiddleware, updateRequestStatus);
 
 // 3. FIXED: Audit Trail/Activity fetch karne ke liye endpoint
-// Iske bina Sneha ke dashboard par logs nahi dikhenge
+// authMiddleware req.user set karta hai
 router.get('/audit-logs', authMiddleware, getAuditLogs);
 
 export default router;
