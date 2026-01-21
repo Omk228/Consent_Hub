@@ -42,7 +42,6 @@ export const register = async (req, res) => {
     const userId = result.insertId;
     const token = jwt.sign(
       { id: userId, role: role },
-      console.log('Register: JWT_SECRET used:', process.env.JWT_SECRET), // Log JWT secret
       process.env.JWT_SECRET,
       { expiresIn: '1d' }
     );
@@ -79,7 +78,6 @@ export const login = async (req, res) => {
 
     const token = jwt.sign(
       { id: user.id, role: user.role }, 
-      console.log('Login: JWT_SECRET used:', process.env.JWT_SECRET), // Log JWT secret
       process.env.JWT_SECRET, 
       { expiresIn: '1d' }
     );
