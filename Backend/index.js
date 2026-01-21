@@ -11,6 +11,7 @@ import auditRoutes from './routes/auditRoutes.js'; // Audit logs ke liye
 import consumerRoutes from './routes/consumerRoutes.js';
 
 dotenv.config();
+console.log("JWT_SECRET from .env:", process.env.JWT_SECRET ? "Loaded" : "Not Loaded"); // NEW LOG
 const app = express();
 
 // Middleware

@@ -91,7 +91,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                 <User size={20} />
               </div>
               <div className="min-w-0">
-                <p className="text-xs font-bold text-white truncate">John Smith</p>
+                <p className="text-xs font-bold text-white truncate">{user?.name}</p>
                 <p className="text-[10px] text-gray-500 truncate">{user.email}</p>
               </div>
             </div>

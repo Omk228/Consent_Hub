@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Shield, Mail, Lock, Eye, EyeOff, CheckCircle } from "lucide-react";
+import { Shield, Mail, Lock, Eye, EyeOff, CheckCircle, Loader2 } from "lucide-react"; 
 import { useAuth } from "../../api/AuthContext";
+import api from "../../api/axios"; 
 
 const Register = () => {
   const { login } = useAuth();
@@ -11,24 +12,49 @@ const Register = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [role, setRole] = useState('DATA_OWNER'); 
+  
+  // FIX 1: MySQL Role se sync karne ke liye 'OWNER' rakha hai
+  const [role, setRole] = useState('OWNER'); 
+  
   const [agreeTerms, setAgreeTerms] = useState(false);
+  const [isLoading, setIsLoading] = useState(false); 
+  const [error, setError] = useState(''); 
 
-  // Validations
   const hasMinLength = password.length >= 8;
   const hasUppercase = /[A-Z]/.test(password);
   const hasNumber = /[0-9]/.test(password);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Registration logic simulation
-    login({ id: Date.now().toString(), email, role }, 'mock-jwt-token');
-    role === 'DATA_OWNER' ? navigate('/owner/dashboard') : navigate('/consumer/dashboard');
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const response = await api.post('/auth/register', {
+        name: fullName,
+        email,
+        password,
+        role // Ab ye sahi 'OWNER' ya 'CONSUMER' bhejega
+      });
+      
+      const { user, token } = response.data;
+      login(user, token); 
+
+      // FIX 2: Navigation path simple dashboard rakha hai loop se bachne ke liye
+      const target = role === 'OWNER' ? '/owner/dashboard' : '/consumer/dashboard';
+      navigate(target, { replace: true });
+
+    } catch (err) {
+      console.error('Registration error:', err);
+      setError(err.response?.data?.message || 'Registration failed. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
     <div className="h-screen w-full flex overflow-hidden bg-white">
-      {/* Left Side: Branding (As per your design) */}
+      {/* Left Side: Branding */}
       <div className="hidden lg:flex lg:w-1/2 bg-[#0f172a] relative items-center justify-center p-12">
         <div className="absolute top-0 left-0 w-full h-full opacity-10">
           <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-indigo-600 blur-[120px] rounded-full" />
@@ -54,7 +80,7 @@ const Register = () => {
       <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-white overflow-y-auto">
         <div className="w-full max-w-md space-y-6 py-8">
           <div className="text-center lg:text-left">
-            <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight text-gradient">Create your account</h2>
+            <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">Create your account</h2>
             <p className="text-slate-500 mt-2">Start managing your data consent today</p>
           </div>
 
@@ -102,11 +128,6 @@ const Register = () => {
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
-              <div className="flex gap-4 text-[11px] mt-2 font-medium">
-                <span className={hasMinLength ? "text-green-600" : "text-slate-400"}>● 8+ chars</span>
-                <span className={hasUppercase ? "text-green-600" : "text-slate-400"}>● Uppercase</span>
-                <span className={hasNumber ? "text-green-600" : "text-slate-400"}>● Number</span>
-              </div>
             </div>
 
             <div className="space-y-2">
@@ -114,16 +135,16 @@ const Register = () => {
               <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
-                  onClick={() => setRole('DATA_OWNER')}
-                  className={`p-3 border rounded-xl text-left transition-all ${role === 'DATA_OWNER' ? 'border-indigo-600 bg-indigo-50 ring-1 ring-indigo-600' : 'border-slate-200'}`}
+                  onClick={() => setRole('OWNER')}
+                  className={`p-3 border rounded-xl text-left transition-all ${role === 'OWNER' ? 'border-indigo-600 bg-indigo-50 ring-1 ring-indigo-600' : 'border-slate-200'}`}
                 >
                   <p className="font-bold text-sm text-slate-900 leading-none">Data Owner</p>
                   <p className="text-[10px] text-slate-500 mt-1">Manage own data</p>
                 </button>
                 <button
                   type="button"
-                  onClick={() => setRole('DATA_CONSUMER')}
-                  className={`p-3 border rounded-xl text-left transition-all ${role === 'DATA_CONSUMER' ? 'border-indigo-600 bg-indigo-50 ring-1 ring-indigo-600' : 'border-slate-200'}`}
+                  onClick={() => setRole('CONSUMER')}
+                  className={`p-3 border rounded-xl text-left transition-all ${role === 'CONSUMER' ? 'border-indigo-600 bg-indigo-50 ring-1 ring-indigo-600' : 'border-slate-200'}`}
                 >
                   <p className="font-bold text-sm text-slate-900 leading-none">Data Consumer</p>
                   <p className="text-[10px] text-slate-500 mt-1">Request access</p>
@@ -131,7 +152,6 @@ const Register = () => {
               </div>
             </div>
 
-            {/* Checkbox Fix (Was missing in your previous code) */}
             <div className="flex items-start gap-3 pt-2">
               <input
                 id="agree"
@@ -148,12 +168,16 @@ const Register = () => {
 
             <button
               type="submit"
-              disabled={!agreeTerms || !hasMinLength || !hasUppercase || !hasNumber}
+              disabled={!agreeTerms || !hasMinLength || !hasUppercase || !hasNumber || isLoading}
               className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl shadow-lg shadow-indigo-200 transition-all active:scale-[0.98]"
             >
-              Create account
+              {isLoading ? <Loader2 className="h-5 w-5 animate-spin mx-auto" /> : 'Create account'}
             </button>
           </form>
+
+          {error && (
+            <p className="text-red-500 text-center text-sm mt-4">{error}</p>
+          )}
 
           <p className="text-center text-sm text-slate-600">
             Already have an account? <Link to="/login" className="text-indigo-600 font-bold hover:underline">Login</Link>

@@ -1,28 +1,29 @@
 import React, { useState } from 'react';
 import { Button } from '../../components/common/Button';
 import { Search, Send, User, ShieldCheck, Globe, Loader2 } from 'lucide-react';
+import api from '../../api/axios'; // Import the axios instance
 
 const SearchOwner = () => {
   const [email, setEmail] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [foundOwner, setFoundOwner] = useState(null);
+  const [error, setError] = useState(''); // State for error handling
 
-  const handleSearch = (e) => {
+  const handleSearch = async (e) => { // Make function async
     e.preventDefault();
     setIsSearching(true);
-    
-    // Simulation: API call delay
-    setTimeout(() => {
-      // Mock data matching your project theme
-      setFoundOwner({ 
-        id: 'owner_123', 
-        name: 'Vijay Deenanath', 
-        email: email,
-        category: 'Health & Finance',
-        location: 'Mumbai, India'
-      });
+    setError(''); // Clear previous errors
+
+    try {
+      const response = await api.get('/consumer/search', { params: { email } });
+      setFoundOwner(response.data);
+    } catch (err) {
+      console.error('Search error:', err);
+      setFoundOwner(null);
+      setError(err.response?.data?.message || 'Error searching for owner.');
+    } finally {
       setIsSearching(false);
-    }, 800);
+    }
   };
 
   const sendRequest = () => {
@@ -78,13 +79,14 @@ const SearchOwner = () => {
               <p className="text-slate-500 font-medium flex items-center gap-1.5 mt-1">
                 <Globe size={14} className="text-slate-300" /> {foundOwner.email}
               </p>
-              <div className="flex gap-2 mt-3">
-                {foundOwner.category.split('&').map(cat => (
+              {/* Category is not directly returned by backend currently, but assuming it might be added or derived */}
+              {/* <div className="flex gap-2 mt-3">
+                {foundOwner.category?.split('&').map(cat => (
                   <span key={cat} className="text-[10px] font-bold text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-md uppercase">
                     {cat.trim()}
                   </span>
                 ))}
-              </div>
+              </div> */}
             </div>
           </div>
 
@@ -107,7 +109,11 @@ const SearchOwner = () => {
                 <div className="bg-white h-16 w-16 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
                     <ShieldCheck className="text-slate-300" size={32} />
                 </div>
-                <p className="text-slate-400 font-bold uppercase tracking-widest text-sm">Enter an email to find an authorized data owner</p>
+                {error ? (
+                  <p className="text-red-500 font-bold uppercase tracking-widest text-sm">{error}</p>
+                ) : (
+                  <p className="text-slate-400 font-bold uppercase tracking-widest text-sm">Enter an email to find an authorized data owner</p>
+                )}
             </div>
         )
       )}

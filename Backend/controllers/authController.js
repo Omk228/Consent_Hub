@@ -15,6 +15,7 @@ export const register = async (req, res) => {
   }
 
   const { name, email, password, role } = req.body;
+  console.log("Received name:", name); // NEW LOG
 
   // Basic validation
   if (!name || !email || !password || !role) {
@@ -22,15 +23,37 @@ export const register = async (req, res) => {
   }
 
   try {
+    console.log("Checking for existing user with email:", email);
     const [existing] = await pool.execute('SELECT * FROM users WHERE email = ?', [email]);
-    if (existing.length > 0) return res.status(400).json({ message: "Email already exists!" });
+    if (existing.length > 0) {
+      console.log("Existing user found:", email);
+      return res.status(400).json({ message: "Email already exists!" });
+    }
 
+    console.log("Hashing password...");
     const hashedPassword = await bcrypt.hash(password, 10);
-    await pool.execute(
+    console.log("Password hashed. Inserting new user into database...");
+
+    const [result] = await pool.execute( // Capture result to get inserted ID
       'INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)',
       [name, email, hashedPassword, role]
     );
-    res.status(201).json({ message: "User registered successfully! 🚀" });
+    console.log("User inserted successfully. Insert ID:", result.insertId);
+    const userId = result.insertId;
+    const token = jwt.sign(
+      { id: userId, role: role },
+      process.env.JWT_SECRET,
+      { expiresIn: '1d' }
+    );
+
+    const userResponseData = { id: userId, name, email, role }; // NEW VARIABLE FOR LOGGING
+    console.log("Sending user data in response:", userResponseData); // NEW LOG
+
+    res.status(201).json({
+      message: "User registered successfully! 🚀",
+      token,
+      user: userResponseData // Use the new variable here
+    });
   } catch (error) {
     console.error("SQL Error:", error.message);
     res.status(500).json({ error: error.message });

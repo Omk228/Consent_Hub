@@ -1,30 +1,21 @@
 import express from 'express';
 import { 
   getPendingRequests, 
-  updateRequestStatus 
-} from '../controllers/consentController.js'; // Controller se functions lao
-import pool from '../config/db.js';
+  updateRequestStatus,
+  requestConsent // <--- YE MISSING THA, ISKO IMPORT KIYA
+} from '../controllers/consentController.js'; 
+import authMiddleware from '../middleware/authMiddleware.js'; // <--- YE MISSING THA
 
 const router = express.Router();
 
-// 1. Consumer request bhejega (Jo tune pehle likha tha)
-router.post('/request', async (req, res) => {
-  const { consumer_id, owner_id, record_id, purpose } = req.body;
-  try {
-    await pool.execute(
-      'INSERT INTO consents (consumer_id, owner_id, record_id, purpose) VALUES (?, ?, ?, ?)',
-      [consumer_id, owner_id, record_id, purpose]
-    );
-    res.status(201).json({ message: "Request sent successfully! 🚀" });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+// 1. Consumer request bhejega (AuthMiddleware aur Controller Function lagaya hai)
+// Ab ye body se 'consumer_id' nahi maangega, token se nikalega
+router.post('/request', authMiddleware, requestConsent); 
 
-// 2. Owner apni pending requests dekhega
-router.get('/pending/:ownerId', getPendingRequests);
+// 2. Owner apni pending requests dekhega (Isme bhi middleware zaroori hai)
+router.get('/pending/:ownerId', authMiddleware, getPendingRequests);
 
 // 3. Owner request approve ya reject karega
-router.put('/update-status', updateRequestStatus);
+router.put('/update-status', authMiddleware, updateRequestStatus);
 
 export default router;

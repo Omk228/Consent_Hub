@@ -13,7 +13,6 @@ export const AuthProvider = ({ children }) => {
         const savedUser = localStorage.getItem('user');
 
         if (savedToken && savedUser) {
-          // JSON.parse ensure karta hai ki user object (with role) recover ho jaye
           setUser(JSON.parse(savedUser)); 
         }
       } catch (err) {
@@ -28,7 +27,7 @@ export const AuthProvider = ({ children }) => {
 
   const login = (userData, token) => {
     localStorage.setItem('token', token);
-    localStorage.setItem('user', JSON.stringify(userData)); // Object ko string bana kar save kiya
+    localStorage.setItem('user', JSON.stringify(userData)); 
     setUser(userData);
   };
 
@@ -40,7 +39,7 @@ export const AuthProvider = ({ children }) => {
 
   return (
     <AuthContext.Provider value={{ user, login, logout, loading }}>
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 };

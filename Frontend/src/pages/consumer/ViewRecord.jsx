@@ -1,28 +1,60 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react'; // Import useState and useEffect
 import { useParams, useNavigate } from 'react-router-dom';
-import { ShieldCheck, ShieldAlert, ArrowLeft, User, FileText, Calendar, Lock } from 'lucide-react';
+import { ShieldCheck, ShieldAlert, ArrowLeft, User, FileText, Calendar, Lock, Loader2 } from 'lucide-react'; // Add Loader2
 import { Button } from '../../components/common/Button';
+import api from '../../api/axios'; // Import the axios instance
 
 const ViewRecord = () => {
-  const { id } = useParams();
+  const { ownerId } = useParams(); // Change 'id' to 'ownerId' as per backend route
   const navigate = useNavigate();
 
-  // Mock data: Real app mein ye API se aayega based on ID
-  const record = {
-    id: id,
-    ownerName: "Vijay Deenanath Chauhan",
-    status: "APPROVED", // Simulation: Agar ye PENDING ya REVOKED hai toh data hide ho jayega
-    data: {
-      fullName: "Vijay Deenanath Chauhan",
-      age: 36,
-      location: "Mandwa",
-      occupation: "Business",
-      healthStatus: "Active",
-      lastCheckup: "2025-12-15"
-    }
-  };
+  const [record, setRecord] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  if (record.status !== 'APPROVED') {
+  useEffect(() => {
+    const fetchRecord = async () => {
+      try {
+        const response = await api.get(`/consumer/owner-records/${ownerId}`);
+        // Assuming the backend returns an array of records, we'll take the first one for now
+        // Or you might need to adjust the backend to return a single record based on record ID
+        // For now, let's assume `response.data` is the record object directly
+        setRecord(response.data && response.data.length > 0 ? response.data[0] : null); // Adjust based on actual backend response structure
+      } catch (err) {
+        console.error('Failed to fetch record:', err);
+        setError(err.response?.data?.message || 'Error fetching record.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchRecord();
+  }, [ownerId]); // Rerun when ownerId changes
+
+  if (isLoading) {
+    return (
+      <div className="max-w-2xl mx-auto mt-20 p-12 bg-white rounded-3xl border-2 border-dashed border-slate-200 text-center shadow-xl shadow-slate-50">
+        <Loader2 className="h-16 w-16 text-indigo-500 mx-auto mb-6 animate-spin" />
+        <h3 className="text-2xl font-black text-slate-900 mb-2">Loading Record...</h3>
+        <p className="text-slate-500 mb-8 font-medium">Please wait while we fetch the data.</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-2xl mx-auto mt-20 p-12 bg-white rounded-3xl border-2 border-dashed border-rose-200 text-center shadow-xl shadow-rose-50">
+        <ShieldAlert className="h-16 w-16 text-rose-500 mx-auto mb-6" />
+        <h3 className="text-2xl font-black text-slate-900 mb-2">Error</h3>
+        <p className="text-slate-500 mb-8 font-medium">{error}</p>
+        <Button onClick={() => navigate(-1)} className="bg-slate-900 text-white px-8 rounded-2xl">
+          Go Back
+        </Button>
+      </div>
+    );
+  }
+
+  if (!record || record.status !== 'APPROVED') { // Check if record exists
     return (
       <div className="max-w-2xl mx-auto mt-20 p-12 bg-white rounded-3xl border-2 border-dashed border-rose-200 text-center shadow-xl shadow-rose-50">
         <ShieldAlert className="h-16 w-16 text-rose-500 mx-auto mb-6" />
@@ -59,7 +91,7 @@ const ViewRecord = () => {
             </div>
             <div>
               <h2 className="text-2xl font-bold">Secure Record Viewer</h2>
-              <p className="text-slate-400 text-sm">Verified access granted by {record.ownerName}</p>
+              <p className="text-slate-400 text-sm">Verified access granted by {record?.ownerName || 'Unknown'}</p>
             </div>
           </div>
           <div className="px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-xs font-black uppercase tracking-widest text-emerald-400">
@@ -74,16 +106,13 @@ const ViewRecord = () => {
           <h3 className="font-bold text-slate-800 flex items-center gap-2">
             <FileText size={18} className="text-indigo-500" /> Personal Profile
           </h3>
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">UID: {record.id}</span>
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">UID: {record?.id}</span>
         </div>
         
         <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
           {[
-            { label: 'Full Name', value: record.data.fullName, icon: User },
-            { label: 'Age', value: record.data.age, icon: Calendar },
-            { label: 'Location', value: record.data.location, icon: FileText },
-            { label: 'Occupation', value: record.data.occupation, icon: FileText },
-            { label: 'Health Status', value: record.data.healthStatus, icon: ShieldCheck },
+            { label: 'Record Name', value: record?.record_name, icon: FileText },
+            { label: 'Category', value: record?.category, icon: FileText },
           ].map((item, idx) => (
             <div key={idx} className="space-y-1">
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
@@ -97,7 +126,7 @@ const ViewRecord = () => {
         {/* Audit Footnote */}
         <div className="px-8 py-5 bg-slate-50 border-t border-slate-100">
           <p className="text-[11px] text-slate-500 font-medium italic">
-            Note: This access event has been cryptographically logged in the Audit Trail for {record.ownerName}. 
+            Note: This access event has been cryptographically logged in the Audit Trail for {record?.ownerName}. 
             Current viewing timestamp: {new Date().toLocaleString()}
           </p>
         </div>
