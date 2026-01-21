@@ -11,10 +11,11 @@ const MyRecords = () => {
   const [records, setRecords] = useState([]);
   const [loadingRecords, setLoadingRecords] = useState(true);
   const [errorRecords, setErrorRecords] = useState('');
-  const [showAddRecordModal, setShowAddRecordModal] = useState(false);
-  const [newRecordName, setNewRecordName] = useState('');
-  const [newRecordCategory, setNewRecordCategory] = useState('');
-  const [newRecordContent, setNewRecordContent] = useState('');
+  const [showRecordModal, setShowRecordModal] = useState(false); // Used for both Add and Edit
+  const [currentRecord, setCurrentRecord] = useState(null); // The record being added or edited
+  const [recordName, setRecordName] = useState('');
+  const [recordCategory, setRecordCategory] = useState('');
+  const [recordContent, setRecordContent] = useState('');
 
   const fetchRecords = async () => {
     try {
@@ -41,25 +42,64 @@ const MyRecords = () => {
   }, [authLoading, authUser]);
 
   const handleAddRecordClick = () => {
-    setShowAddRecordModal(true);
+    setCurrentRecord(null);
+    setRecordName('');
+    setRecordCategory('');
+    setRecordContent('');
+    setShowRecordModal(true);
   };
 
-  const submitNewRecord = async () => {
-    try {
-      const response = await api.post('/owner/records', {
-        record_name: newRecordName,
-        category: newRecordCategory,
-        content: newRecordContent,
-        status: 'active', // Default status for a new record
-      });
-      alert(response.data.message);
-      setShowAddRecordModal(false);
-      setNewRecordName('');
-      setNewRecordCategory('');
-      setNewRecordContent('');
-      fetchRecords(); // Refresh the records list
-    } catch (error) {
-      alert(`Error: ${error.response?.data?.message || 'Failed to add record'}`);
+  const handleEditClick = (record) => {
+    setCurrentRecord(record);
+    setRecordName(record.name);
+    setRecordCategory(record.category);
+    setRecordContent(record.content);
+    setShowRecordModal(true);
+  };
+
+  const handleDeleteClick = async (recordId) => {
+    if (window.confirm('Are you sure you want to delete this record?')) {
+      try {
+        const response = await api.delete(`/owner/records/${recordId}`);
+        alert(response.data.message);
+        fetchRecords(); // Refresh the records list
+      } catch (error) {
+        alert(`Error: ${error.response?.data?.message || 'Failed to delete record'}`);
+      }
+    }
+  };
+
+  const submitRecord = async () => {
+    if (currentRecord) { // Editing existing record
+      try {
+        const response = await api.put(`/owner/records/${currentRecord.id}`, {
+          record_name: recordName,
+          category: recordCategory,
+          content: recordContent,
+        });
+        alert(response.data.message);
+        setShowRecordModal(false);
+        fetchRecords();
+      } catch (error) {
+        alert(`Error: ${error.response?.data?.message || 'Failed to update record'}`);
+      }
+    } else { // Adding new record
+      try {
+        const response = await api.post('/owner/records', {
+          record_name: recordName,
+          category: recordCategory,
+          content: recordContent,
+          status: 'active', // Default status for a new record
+        });
+        alert(response.data.message);
+        setShowRecordModal(false);
+        setRecordName('');
+        setRecordCategory('');
+        setRecordContent('');
+        fetchRecords(); // Refresh the records list
+      } catch (error) {
+        alert(`Error: ${error.response?.data?.message || 'Failed to add record'}`);
+      }
     }
   };
 
@@ -144,9 +184,8 @@ const MyRecords = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{record.lastAccessed}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600">{record.activeConsents}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button className="text-gray-400 hover:text-gray-600 mx-1"><Eye className="w-5 h-5" /></button>
-                      <button className="text-gray-400 hover:text-gray-600 mx-1"><Edit className="w-5 h-5" /></button>
-                      <button className="text-red-600 hover:text-red-800 mx-1"><Trash2 className="w-5 h-5" /></button>
+                      <button onClick={() => handleEditClick(record)} className="text-gray-400 hover:text-gray-600 mx-1"><Edit className="w-5 h-5" /></button>
+                      <button onClick={() => handleDeleteClick(record.id)} className="text-red-600 hover:text-red-800 mx-1"><Trash2 className="w-5 h-5" /></button>
                     </td>
                   </tr>
                 ))
@@ -155,10 +194,10 @@ const MyRecords = () => {
           </tbody>
         </table>
       </div>
-      {showAddRecordModal && (
+      {showRecordModal && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex justify-center items-center z-50">
           <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-md mx-auto">
-            <h3 className="text-xl font-bold text-gray-800 mb-4">Add New Record</h3>
+            <h3 className="text-xl font-bold text-gray-800 mb-4">{currentRecord ? 'Edit Record' : 'Add New Record'}</h3>
             <div className="space-y-4">
               <div>
                 <label htmlFor="recordName" className="block text-sm font-medium text-gray-700">Record Name</label>
@@ -166,8 +205,8 @@ const MyRecords = () => {
                   type="text"
                   id="recordName"
                   className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                  value={newRecordName}
-                  onChange={(e) => setNewRecordName(e.target.value)}
+                  value={recordName}
+                  onChange={(e) => setRecordName(e.target.value)}
                 />
               </div>
               <div>
@@ -176,8 +215,8 @@ const MyRecords = () => {
                   type="text"
                   id="recordCategory"
                   className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                  value={newRecordCategory}
-                  onChange={(e) => setNewRecordCategory(e.target.value)}
+                  value={recordCategory}
+                  onChange={(e) => setRecordCategory(e.target.value)}
                 />
               </div>
               <div>
@@ -186,24 +225,24 @@ const MyRecords = () => {
                   id="recordContent"
                   rows="4"
                   className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                  value={newRecordContent}
-                  onChange={(e) => setNewRecordContent(e.target.value)}
+                  value={recordContent}
+                  onChange={(e) => setRecordContent(e.target.value)}
                 ></textarea>
               </div>
             </div>
             <div className="mt-6 flex justify-end space-x-3">
               <Button
                 variant="ghost"
-                onClick={() => setShowAddRecordModal(false)}
+                onClick={() => setShowRecordModal(false)}
                 className="text-gray-700 hover:bg-gray-100 px-4 py-2 rounded-lg"
               >
                 Cancel
               </Button>
               <Button
-                onClick={submitNewRecord}
+                onClick={submitRecord}
                 className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg"
               >
-                Add Record
+                {currentRecord ? 'Save Changes' : 'Add Record'}
               </Button>
             </div>
           </div>
